@@ -1,0 +1,136 @@
+#define BLINKER_PRINT Serial
+#define BLINKER_WIFI
+#define BLINKER_ALIGENIE_OUTLET //天猫精灵
+
+#include <Blinker.h>
+
+char auth[] = "*********";
+char ssid[] = "*********";
+char pswd[] = "*********";
+BlinkerButton Button1("btn-abc");     //定义按钮数据键值
+BlinkerText Text1("TextKey");        //文件显示键值
+
+bool oState = false;
+
+bool power;
+bool lastpower;
+
+int counter = 0;
+String pState;  //存储检测到的电源状态
+
+#define PW D2    //继电器控制管脚
+#define PM D5    //电源检测管脚
+
+
+void aligeniePowerState(const String & state)
+{
+    BLINKER_LOG("need set power state: ", state);
+
+    if (state == BLINKER_CMD_ON) {
+        digitalWrite(PW, HIGH);
+        delay(200);
+        digitalWrite(PW, LOW);
+        Serial.println("开了");
+
+        BlinkerAliGenie.powerState("on");
+        BlinkerAliGenie.print();
+
+        oState = true;
+    }
+    else if (state == BLINKER_CMD_OFF) {
+        digitalWrite(PW,HIGH);
+        delay(200);
+        digitalWrite(PW, LOW);
+        Serial.println("关了");
+
+        BlinkerAliGenie.powerState("off");
+        BlinkerAliGenie.print();
+
+        oState = false;
+    }
+}
+
+
+void aligenieQuery(int32_t queryCode)
+{
+    BLINKER_LOG("AliGenie Query codes: ", queryCode);
+            
+            if(digitalRead(PM) == true){
+            BlinkerAliGenie.powerState("on");
+            BlinkerAliGenie.powerState("on");
+          }else {
+            BlinkerAliGenie.powerState("off");
+            BlinkerAliGenie.powerState("off");
+                }
+            BlinkerAliGenie.print();
+
+}
+
+void dataRead(const String & data)      // 如果未绑定的组件被触发，则会执行其中内容
+{
+    BLINKER_LOG("Blinker readString: ", data);
+
+    Blinker.vibrate();
+    
+    uint32_t BlinkerTime = millis();
+    
+    Blinker.print("millis", BlinkerTime);
+    
+}
+
+void button1_callback(const String & state)     //点灯app内控制按键触发
+{
+    BLINKER_LOG("get button state: ", state);
+    digitalWrite(PW,HIGH);
+    delay(200);
+    digitalWrite(PW, LOW);
+}
+
+void heartbeat(){ 
+    if(digitalRead(PM) == true){
+        pState="开机";
+      }else {
+        pState="关机";
+            }
+            
+     Text1.print(pState,"电源状态反馈");
+     Serial.println("心跳反馈");
+}
+
+void setup()
+{
+    pinMode(PM,INPUT);
+    Serial.begin(115200);
+    #if defined(BLINKER_PRINT)
+        BLINKER_DEBUG.stream(BLINKER_PRINT);
+    #endif
+
+    pinMode(PW, OUTPUT);              //定义io口为输出
+    digitalWrite(PW, LOW);           //定义io默认为高电平
+
+    Blinker.begin(auth, ssid, pswd);
+    Blinker.attachData(dataRead);
+    
+    BlinkerAliGenie.attachPowerState(aligeniePowerState);
+    BlinkerAliGenie.attachQuery(aligenieQuery);
+    Button1.attach(button1_callback);   
+    Blinker.attachHeartbeat(heartbeat);   
+    
+}
+
+void loop()
+{
+    Blinker.run();
+    power = digitalRead(PM);
+    if (power != lastpower){
+            if(digitalRead(PM) == true){
+              pState="开机";
+            }else {
+              pState="关机";
+                  }
+           Text1.print(pState,"电源状态反馈");
+           Serial.println("反馈");
+    }
+    lastpower = power;
+    
+}
